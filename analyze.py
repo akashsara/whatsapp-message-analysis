@@ -2,10 +2,10 @@
 import os, re, sys, graphs
 from operator import itemgetter
 
-#(Date)(: )(Time)(: )(Sender)(: )(Message)
-messageFormat = re.compile(r'^([0-9]{2}/[0-9]{2}/[0-9]{2})(, )([0-9]{1,2}:[0-9]{2}:[0-9]{2} [A-Z]{2})(: )(.*?)(: )(.*)')
-#[Hours]:[Minutes]:[Seconds] [AM/PM]
-timeSplit = re.compile(r'([0-9]{1,2}):([0-9]{2}):([0-9]{2}) ([A-Z]{2})')
+#(Date)(, )(Hours:Minutes)(Seconds)(AM/PM)(:/ -)( )(Sender)(: )(Message)
+messageFormat = re.compile(r'^([0-9]{1,2}/[0-9]{2}/[0-9]{2})(, )([0-9]{1,2}:[0-9]{2})(:[0-9]{2})*( [A-Z]{2})( -|:)( )(.*?)(: )(.*)')
+#[Hours]:[Minutes]
+timeSplit = re.compile(r'([0-9]{1,2}):([0-9]{2})')
 
 #To get rid of file extension when making graphs
 fileSplit = re.compile(r'(.*)(.[a-zA-Z0-9]{3,4})')
@@ -74,7 +74,6 @@ def getFileName():
     #Get file name from command line
     return ' '.join(sys.argv[1:])
 
-
 fileName = getFileName()
 
 #Analyze file
@@ -89,20 +88,21 @@ for lines in textToAnalyze:
     if messageFormat.search(lines):
         found = messageFormat.search(lines)
         dateDictionary = analyze(dateDictionary, found[1], 'Date')
-        personDictionary = analyze(personDictionary, found[5], 'Sender')
+        personDictionary = analyze(personDictionary, found[8], 'Sender')
         #Time
         time = timeSplit.search(found[3])
         hours = time[1]
         if len(hours) == 1:
             hours = '0' + str(hours)
-        if time[4] == 'PM':
+        if found[5] == ' PM':
             if (int(hours) + 12) >= 24:
                 hours = 0
             else:
                 hours = int(hours) + 12
         timeDictionary = analyze(timeDictionary, str(hours), 'Time')
-        #Message
-        messageList.append(found[7])
+        #Message. Ignore media.
+        if '<Media omitted>' not in found[10]:
+            messageList.append(found[10])
         noMessages += 1
 
 #Sort dictionaries and get word dictionary from analysing the message list
@@ -120,7 +120,6 @@ graphs.histogram(timeDictionary, 'Message Time Chart in ' + newFileName, 'timeAc
 graphs.barGraph(wordDictionary[:15], 'Word', 'Uses', 'Most used words in ' + newFileName, 'wordFrequency.png')
 graphs.barGraph(dateDictionary[:15], 'Date', 'Messages', 'Most Messages in ' + newFileName, 'dateActivity.png')
 graphs.barGraph(personDictionary[:15], 'Sender', 'Messages', 'Most active person in ' + newFileName, 'personActivity.png')
-
 
 #Write to files
 toFile(dateDictionary, 'Date', 'dates.txt')
