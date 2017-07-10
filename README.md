@@ -28,6 +28,14 @@ timeActivity.png
 wordFrequency.png
 ```
 
+## Other Information:
+
+Only messages of the following types have been tested:
+
+* `18/05/16, 7:06:22 PM: ‪(username/phone number): message`
+
+* `4/24/17, 6:30 PM - (username/phone number): message`
+
 ## Screenshots:
 
 ![Most Used Words](https://i.imgur.com/cc2LlIo.png)
