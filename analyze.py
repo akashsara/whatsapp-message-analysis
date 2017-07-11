@@ -1,5 +1,7 @@
 #!python3
-import os, re, sys, graphs
+import os, re, sys, graphs, openpyxl
+from openpyxl.styles import Font
+from openpyxl.styles import NamedStyle
 from operator import itemgetter
 
 #(Date)(, )(Hours:Minutes)(Seconds)(AM/PM)(:/ -)( )(Sender)(: )(Message)
@@ -46,24 +48,61 @@ def toFile(dictionary, keyOne, fileName):
         fi.write(items[keyOne] + '::' + str(items['Count']) + '\n')
     fi.close()
 
-#Get a list of the most used words of length 5 or more while ignoring links and case. Words are separated by ' '.
+#Get a dictionary of the most used words in the chat and the number of times they're used while ignoring commonly used words.
 def getWordFrequency(messageList):
+    wordFile = open('commonWords.txt', 'r')
+    commonWordsList = wordFile.read()
+    wordFile.close()
     stripChars = re.compile(r'[a-zA-z0-9]+')
     frequencyList = []
     for messages in messageList:
         wordsList = messages.split(' ')
         for words in wordsList:
+            words = words.lower()
+            if words in commonWordsList:
+                continue
             if stripChars.search(words):
-                words = (stripChars.search(words).group()).lower()
-                if len(words) < 5 or words == 'https':
-                    continue
+                words = stripChars.search(words).group()
                 for existingWords in frequencyList:
                     if existingWords['Word'] == words:
                         existingWords['Count'] += 1
                         break
                 else:
-                    frequencyList.append({'Word': words.lower(), 'Count': 1})
+                    frequencyList.append({'Word': words, 'Count': 1})
     return sort(frequencyList)
+
+#save to excel sheet
+def toXL(dictionary, sheetName, col1, col2):
+    #If file exists, add a new sheet
+    if os.path.isfile('data.xlsx'):
+        xl = openpyxl.load_workbook('data.xlsx')
+        xl.create_sheet(title=sheetName)
+        sheet = xl.get_sheet_by_name(sheetName)
+    #If not use current sheet
+    else:
+        xl = openpyxl.Workbook()
+        sheet = xl.get_active_sheet()
+        sheet.title = sheetName
+        #Set heading formats
+        #header = NamedStyle(name="header")
+        #header.font = Font(size=16, bold=True)
+
+    sheet.column_dimensions['C'].width = 30
+    sheet.column_dimensions['D'].width = 15
+    #Setup headings
+    headings = [col1, col2]
+    rowNum = 2
+    for colNo, heading in enumerate(headings):
+        #sheet.cell(row=rowNum, column=colNo + 3).style = 'header'
+        sheet.cell(row=rowNum, column=colNo + 3).value = heading
+        rowNum += 1
+
+    #Add data
+    for item in dictionary:
+        sheet.cell(row=rowNum, column=3).value = item[col1]
+        sheet.cell(row=rowNum, column=4).value = item['Count']
+        rowNum += 1
+    xl.save('data.xlsx')
 
 #Gets file name from command line arguments
 def getFileName():
@@ -101,7 +140,7 @@ for lines in textToAnalyze:
                 hours = int(hours) + 12
         timeDictionary = analyze(timeDictionary, str(hours), 'Time')
         #Message. Ignore media.
-        if '<Media omitted>' not in found[10]:
+        if '<Media omitted>' not in found[10] and '<‎attached>' not in found[10]:
             messageList.append(found[10])
         noMessages += 1
 
@@ -111,18 +150,19 @@ personDictionary = sort(personDictionary)
 timeDictionary = sorted(timeDictionary, key=itemgetter('Time'))
 wordDictionary = getWordFrequency(messageList)
 
-#Print number of messages
-print('\nTotal number of messages = %s' %noMessages)
+#remove old data sheets
+if os.path.isfile('data.xlsx'):
+    os.unlink('data.xlsx')
+
+#Add to excel sheet
+toXL(dateDictionary, 'Dates', 'Date', 'No. of Messages')
+toXL(personDictionary, 'People', 'Sender', 'No. of Messages')
+toXL(timeDictionary, 'Times', 'Time', 'No. of Messages')
+toXL(wordDictionary, 'Words', 'Word', 'No. of Uses')
 
 #Generate graphs
 newFileName = fileSplit.search(fileName)[1]
 graphs.histogram(timeDictionary, 'Message Time Chart in ' + newFileName, 'timeActivity.png')
-graphs.barGraph(wordDictionary[:15], 'Word', 'Uses', 'Most used words in ' + newFileName, 'wordFrequency.png')
+graphs.barGraph(wordDictionary[:15], 'Word', 'Uses', 'Most used words in ' + str(noMessages) + ' messages in ' + newFileName, 'wordFrequency.png')
 graphs.barGraph(dateDictionary[:15], 'Date', 'Messages', 'Most Messages in ' + newFileName, 'dateActivity.png')
 graphs.barGraph(personDictionary[:15], 'Sender', 'Messages', 'Most active person in ' + newFileName, 'personActivity.png')
-
-#Write to files
-toFile(dateDictionary, 'Date', 'dates.txt')
-toFile(personDictionary, 'Sender', 'people.txt')
-toFile(timeDictionary, 'Time', 'time.txt')
-toFile(wordDictionary, 'Word', 'word.txt')
