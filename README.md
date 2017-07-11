@@ -15,13 +15,10 @@ _Requires Python3 and the following libraries: matplotlib, numpy_
 3. Run the script in the commandline with the following format:
 `analyze.py chat.txt` where chat.txt is the file containing the chats
 
-4. The below images will be generated in the folder along with 4 text files containing the formatted data:
+4. The below images will be generated in the folder along with an excel sheet containing the formatted data:
 
 ```
-dates.txt
-people.txt
-time.txt
-word.txt
+data.xlsx
 dateActivity.png
 personActivity.png
 timeActivity.png
