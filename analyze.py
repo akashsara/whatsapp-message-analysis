@@ -41,13 +41,6 @@ def analyze(dictionary, value, keyName):
 def sort(dictionary):
     return sorted(dictionary, key=itemgetter('Count'), reverse=True)
 
-#Copy contents of a dictionary to a file
-def toFile(dictionary, keyOne, fileName):
-    fi = open(fileName, 'w', encoding='utf-8')
-    for items in dictionary:
-        fi.write(items[keyOne] + '::' + str(items['Count']) + '\n')
-    fi.close()
-
 #Get a dictionary of the most used words in the chat and the number of times they're used while ignoring commonly used words.
 def getWordFrequency(messageList):
     wordFile = open('commonWords.txt', 'r')
@@ -83,9 +76,6 @@ def toXL(dictionary, sheetName, col1, col2):
         xl = openpyxl.Workbook()
         sheet = xl.get_active_sheet()
         sheet.title = sheetName
-        #Set heading formats
-        #header = NamedStyle(name="header")
-        #header.font = Font(size=16, bold=True)
 
     sheet.column_dimensions['C'].width = 30
     sheet.column_dimensions['D'].width = 15
@@ -93,9 +83,9 @@ def toXL(dictionary, sheetName, col1, col2):
     headings = [col1, col2]
     rowNum = 2
     for colNo, heading in enumerate(headings):
-        #sheet.cell(row=rowNum, column=colNo + 3).style = 'header'
         sheet.cell(row=rowNum, column=colNo + 3).value = heading
-        rowNum += 1
+
+    rowNum += 1
 
     #Add data
     for item in dictionary:
