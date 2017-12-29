@@ -1,4 +1,3 @@
-*.txt
 Media
 __pycache__/
 *.py[cod]
