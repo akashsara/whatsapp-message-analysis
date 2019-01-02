@@ -1,5 +1,9 @@
 #!python3
-import os, re, sys, graphs, openpyxl
+import os
+import re
+import sys
+import graphs
+import openpyxl
 from openpyxl.styles import Font
 from openpyxl.styles import NamedStyle
 from operator import itemgetter
@@ -19,13 +23,6 @@ timeDictionary = []
 personDictionary = []
 wordDictionary = []
 messageList = []
-
-#Copy contents of file to a variable.
-def readFile(fileName):
-    fi = open(fileName, 'r', encoding='utf-8')
-    textToAnalyze = fi.readlines()
-    fi.close()
-    return textToAnalyze
 
 #If value exists in the dictionary, increment count. Else add a new entry.
 def analyze(dictionary, value, keyName):
@@ -64,56 +61,81 @@ def getWordFrequency(messageList):
                     frequencyList.append({'Word': words, 'Count': 1})
     return sort(frequencyList)
 
-#save to excel sheet
-def toXL(dictionary, sheetName, col1, col2):
-    #If file exists, add a new sheet
-    if os.path.isfile('data.xlsx'):
-        xl = openpyxl.load_workbook('data.xlsx')
-        xl.create_sheet(title=sheetName)
-        sheet = xl.get_sheet_by_name(sheetName)
-    #If not use current sheet
+"""
+Function to create a new sheet or find an existing sheet.
+Returns a Worksheet object as well as the Workbook object.
+First, it checks if the file: data.xlsx already exists. 
+If the file exists, just create a new sheet with the given sheet_name argument. 
+Otherwise, create a new Workbook and set the sheet name. 
+Return the Workbook, Worksheet
+"""
+def get_workbook_and_sheet(sheet_name):
+    if os.path.isfile('output/data.xlsx'):
+        xl = openpyxl.load_workbook('output/data.xlsx')
+        xl.create_sheet(title=sheet_name)
+        sheet = xl[sheet_name]
     else:
+        if not os.path.exists('output'):
+            os.mkdir('output')
         xl = openpyxl.Workbook()
-        sheet = xl.get_active_sheet()
-        sheet.title = sheetName
+        sheet = xl.active
+        sheet.title = sheet_name
+    return xl, sheet
 
-    sheet.column_dimensions['C'].width = 30
-    sheet.column_dimensions['D'].width = 15
-    #Setup headings
-    headings = [col1, col2]
-    rowNum = 2
-    for colNo, heading in enumerate(headings):
-        sheet.cell(row=rowNum, column=colNo + 3).value = heading
+"""
+Function to save a dictionary to an Excel file.
+Returns nothing.
+Calls the get_workbook_and_sheet() function to get the workbook and sheet.
+Sets the column width & headers before inserting each item of the dictionary to the sheet.
+Then saves the workbook.
+"""
+def to_xl(dictionary, sheet_name, col1, col2):
+    xl, sheet = get_workbook_and_sheet(sheet_name)
+    # Column Width
+    sheet.column_dimensions['A'].width = 30
+    sheet.column_dimensions['B'].width = 15
+    # Column Headers
+    sheet.cell(row=1, column=1).value = col1
+    sheet.cell(row=2, column=2).value = col2
+    # Insert Data
+    for row, item in enumerate(dictionary):
+        sheet.cell(row=row + 2, column=1).value = item[col1]
+        sheet.cell(row=row + 2, column=2).value = item['Count']
+    xl.save('output/data.xlsx')
 
-    rowNum += 1
-
-    #Add data
-    for item in dictionary:
-        sheet.cell(row=rowNum, column=3).value = item[col1]
-        sheet.cell(row=rowNum, column=4).value = item['Count']
-        rowNum += 1
-    xl.save('data.xlsx')
-
-#Gets file name from command line arguments
-def getFileName():
+"""
+Function to accept command-line arguments.
+If no arguments are found, then it prints an error and stops the script.
+Else it returns the arguments.
+"""
+def get_file_name():
     #If no filename is given
     if len(sys.argv) < 2:
-        print('Usage: analyze.py fileName')
+        print('Usage: analyze.py file_name.extension')
         sys.exit()
     #Get file name from command line
     return ' '.join(sys.argv[1:])
 
-fileName = getFileName()
+"""
+Function to read the input file of chats. 
+Copies it to a variable and returns it.
+"""
+def read_file(file_name):
+    with open(file_name, 'r', encoding='utf-8') as fi:
+        text_to_analyze = fi.readlines()
+    return text_to_analyze
+    
+file_name = get_file_name()
 
 #Analyze file
-textToAnalyze = readFile(fileName)
+text_to_analyze = readFile(file_name)
 
 #for each line, check if it is a new message. If it is, split it up into components.
 #The date and sender components are added to their dictionaries.
 #Split up the time into hours, minutes, seconds and AM/PM.
 #If it is PM, add 12 hours to it. If hours is a single digit, convert it to double digits.
 #Each message is appended to a list for later analysis.
-for lines in textToAnalyze:
+for lines in text_to_analyze:
     if messageFormat.search(lines):
         found = messageFormat.search(lines)
         dateDictionary = analyze(dateDictionary, found[1], 'Date')
@@ -141,18 +163,18 @@ timeDictionary = sorted(timeDictionary, key=itemgetter('Time'))
 wordDictionary = getWordFrequency(messageList)
 
 #remove old data sheets
-if os.path.isfile('data.xlsx'):
-    os.unlink('data.xlsx')
+if os.path.isfile('output/data.xlsx'):
+    os.unlink('output/data.xlsx')
 
 #Add to excel sheet
-toXL(dateDictionary, 'Dates', 'Date', 'No. of Messages')
-toXL(personDictionary, 'People', 'Sender', 'No. of Messages')
-toXL(timeDictionary, 'Times', 'Time', 'No. of Messages')
-toXL(wordDictionary, 'Words', 'Word', 'No. of Uses')
+to_xl(dateDictionary, 'Dates', 'Date', 'No. of Messages')
+to_xl(personDictionary, 'People', 'Sender', 'No. of Messages')
+to_xl(timeDictionary, 'Times', 'Time', 'No. of Messages')
+to_xl(wordDictionary, 'Words', 'Word', 'No. of Uses')
 
 #Generate graphs
 newFileName = fileSplit.search(fileName)[1]
-graphs.histogram(timeDictionary, 'Message Time Chart in ' + newFileName, 'timeActivity.png')
-graphs.barGraph(wordDictionary[:15], 'Word', 'Uses', 'Most used words in ' + str(noMessages) + ' messages in ' + newFileName, 'wordFrequency.png')
-graphs.barGraph(dateDictionary[:15], 'Date', 'Messages', 'Most Messages in ' + newFileName, 'dateActivity.png')
-graphs.barGraph(personDictionary[:15], 'Sender', 'Messages', 'Most active person in ' + newFileName, 'personActivity.png')
+graphs.histogram(timeDictionary, 'Message Time Chart in ' + newFileName, 'output/timeActivity.png')
+graphs.barGraph(wordDictionary[:15], 'Word', 'Uses', 'Most used words in ' + str(noMessages) + ' messages in ' + newFileName, 'output/wordFrequency.png')
+graphs.barGraph(dateDictionary[:15], 'Date', 'Messages', 'Most Messages in ' + newFileName, 'output/dateActivity.png')
+graphs.barGraph(personDictionary[:15], 'Sender', 'Messages', 'Most active person in ' + newFileName, 'output/personActivity.png')
