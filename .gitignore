@@ -1,5 +1,7 @@
 Media
 Data
 output
+league.txt
 __pycache__/
 *.py[cod]
+venv
