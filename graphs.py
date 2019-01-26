@@ -1,41 +1,35 @@
 #!python3
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 from operator import itemgetter
 
-#Set up the words as x and its count as y
-def barGraph(dictionary, keyName, label, title, fileName):
+def bar_graph(dictionary, limit, label, title, fileName):
     x = []
     y = []
-    for items in dictionary:
-        x.append(items[keyName])
-        y.append(items['Count'])
-    makeBarGraph(x, y, label, title, fileName)
+    for count, (key, value) in enumerate(dictionary.items()):
+        if count == limit:
+            break
+        x.append(key)
+        y.append(value)
+    make_bar_graph(x, y, label, title, fileName)
 
-def makeBarGraph(x, y, label, title, saveAs):
-        fig, ax = plt.subplots()
-        y_pos = np.arange(len(y))
-        ax.barh(y_pos, y)
-        ax.set_yticks(y_pos)
-        ax.set_yticklabels(x)
-        ax.invert_yaxis()
-        ax.set_xlabel(label)
-        ax.set_title(title)
-        plt.tight_layout()
-        plt.savefig(saveAs)
+def make_bar_graph(x, y, label, title, save_as):
+    plt.figure(figsize=(10,6), dpi=160)
+    ax = sns.barplot(y, x)
+    ax.set_xlabel(label)
+    ax.set_title(title)
+    plt.tight_layout()
+    plt.savefig(save_as)
 
-def histogram(dictionary, title, saveAs):
-    dataSet = []
-    bins = []
-    for items in dictionary:
-        for i in range(items['Count']):
-            dataSet.append(int(items['Time']))
-        bins.append(int(items['Time']))
-    plt.xlim(0,23)
-    plt.xticks(bins)
-    plt.hist(dataSet, bins, align='mid')
+def histogram(dictionary, title, save_as):
+    plt.figure(figsize=(10,6), dpi=160)
+    sns.barplot(
+        x=[int(x)for x in dictionary.keys()],
+        y=list(dictionary.values())
+    )
     plt.xlabel('Time')
     plt.ylabel('Messages')
     plt.title(title)
     plt.tight_layout()
-    plt.savefig(saveAs)
+    plt.savefig(save_as)

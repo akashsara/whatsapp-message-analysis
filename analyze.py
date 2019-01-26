@@ -4,9 +4,9 @@ import re
 import sys
 import graphs
 import openpyxl
+from collections import Counter, OrderedDict
 from openpyxl.styles import Font
 from openpyxl.styles import NamedStyle
-from operator import itemgetter
 
 #(Date)(, )(Hours:Minutes)(Seconds)(AM/PM)(:/ -)( )(Sender)(: )(Message)
 message_format = re.compile(r'^([0-9]{1,2}/[0-9]{2}/[0-9]{2})(, )([0-9]{1,2}:[0-9]{2})(:[0-9]{2})*( [A-Z]{2})( -|:)( )(.*?)(: )(.*)')
@@ -16,15 +16,9 @@ time_split = re.compile(r'([0-9]{1,2}):([0-9]{2})')
 #To get rid of file extension when making graphs
 file_split = re.compile(r'(.*)(.[a-zA-Z0-9]{3,4})')
 
-#Initializing empty lists of dictionaries for date, time, person and word, no of messages to 0 and a message list
-number_of_messages = 0
-date_dictionary = {}
-time_dictionary = {}
-person_dictionary = {}
-word_dictionary = {}
-message_list = []
-
-#If value exists in the dictionary, increment count. Else add a new entry.
+"""
+If value exists in the dictionary, increment count. Else add a new entry.
+"""
 def add_to_dictionary(dictionary, value):
     if value in dictionary:
         dictionary[value] += 1
@@ -32,29 +26,35 @@ def add_to_dictionary(dictionary, value):
         dictionary[value] = 1
     return dictionary
 
-#Sort a dictionary in descending order of its count
-def sort(dictionary):
-    return sorted(dictionary, key=itemgetter('Count'), reverse=True)
-
-#Get a dictionary of the most used words in the chat and the number of times they're used while ignoring commonly used words.
+"""
+Generates a list of frequent words from the list of messages.
+Uses a list of common words to avoid.
+Takes one message at a time and repeats the following steps:
+    Get individual words by splitting the message on every space.
+    Convert each word to lower case.
+    If the word is in the list of common words, go to the next word.
+    Otherwise, "clean" the word. This involves removing any non-alphanumeric characters.
+    If the word is already in the dictionary, increment the count.
+    Else add it to the list.
+When the entire list of messages is covered, return the frequency dict.
+"""
 def get_word_frequency(message_list):
     with open('commonWords.txt', 'r') as word_file:
         common_words_list = word_file.read()
     clean_word = re.compile(r'[a-zA-z0-9]+')
-    frequency_list = {}
+    frequency_dictionary = Counter()
     for messages in message_list:
+        processed_words = []
         words_list = messages.split(' ')
         for words in words_list:
-            word = word.lower()
+            word = words.lower()
             if word in common_words_list:
                 continue
             if clean_word.search(word):
                 word = clean_word.search(word).group()
-                if word in frequency_list:
-                    frequency_list[word] += 1
-                else:
-                    frequency_list[word] = 1
-    return sort(frequency_list)
+                processed_words.append(word)
+        frequency_dictionary.update(processed_words)
+    return frequency_dictionary
 
 """
 Function to create a new sheet or find an existing sheet.
@@ -64,9 +64,9 @@ If the file exists, just create a new sheet with the given sheet_name argument.
 Otherwise, create a new Workbook and set the sheet name. 
 Return the Workbook, Worksheet
 """
-def get_workbook_and_sheet(sheet_name):
-    if os.path.isfile('output/data.xlsx'):
-        xl = openpyxl.load_workbook('output/data.xlsx')
+def get_workbook_and_sheet(sheet_name, output_file):
+    if os.path.isfile(output_file):
+        xl = openpyxl.load_workbook(output_file)
         xl.create_sheet(title=sheet_name)
         sheet = xl[sheet_name]
     else:
@@ -84,8 +84,8 @@ Calls the get_workbook_and_sheet() function to get the workbook and sheet.
 Sets the column width & headers before inserting each item of the dictionary to the sheet.
 Then saves the workbook.
 """
-def to_xl(dictionary, sheet_name, col1, col2):
-    xl, sheet = get_workbook_and_sheet(sheet_name)
+def to_xl(dictionary, sheet_name, col1, col2, output_file):
+    xl, sheet = get_workbook_and_sheet(sheet_name, output_file)
     # Column Width
     sheet.column_dimensions['A'].width = 30
     sheet.column_dimensions['B'].width = 15
@@ -93,10 +93,10 @@ def to_xl(dictionary, sheet_name, col1, col2):
     sheet.cell(row=1, column=1).value = col1
     sheet.cell(row=2, column=2).value = col2
     # Insert Data
-    for row, item in enumerate(dictionary):
-        sheet.cell(row=row + 2, column=1).value = item[col1]
-        sheet.cell(row=row + 2, column=2).value = item['Count']
-    xl.save('output/data.xlsx')
+    for row, (key, value) in enumerate(dictionary.items()):
+        sheet.cell(row=row + 2, column=1).value = key
+        sheet.cell(row=row + 2, column=2).value = value
+    xl.save(output_file)
 
 """
 Function to accept command-line arguments.
@@ -120,56 +120,110 @@ def read_file(file_name):
         text_to_analyze = fi.readlines()
     return text_to_analyze
     
-file_name = get_file_name()
+"""
+Converts the hour of the day from the 12-hour clock to the 24-hour clock.
+"""
+def to_24_hour_clock(hours, time_period):
+    if time_period == ' PM' and int(hours) != 12:
+        return int(hours) + 12
+    elif time_period == ' AM' and int(hours) == 12:
+        return '00'
+    elif len(hours) == 1:
+        return '0' + str(hours)
+    else:
+        return hours    
+       
+"""
+    Initialize all variables. 
+    Read one message at a time.
+    Check if it matches our Regex "line" format.
+    If it does, perform this process:
+        Separate the date, time, person and put them into separate dictionaries.
+        If the message isn't some sort of media attachment, add to message_list.
+        Increment the number of messages.
+    """
+def collect_data(text_to_analyze):
+    # Initializing our variables
+    number_of_messages = 0
+    date_dictionary = {}
+    time_dictionary = {}
+    person_dictionary = {}
+    message_list = []
+    
+    # Collecting data into variables
+    for lines in text_to_analyze:
+        if message_format.search(lines):
+            found = message_format.search(lines)
+            date_dictionary = add_to_dictionary(date_dictionary, found[1])
+            person_dictionary = add_to_dictionary(person_dictionary, found[8])
+            #Time
+            time = time_split.search(found[3])
+            hours = to_24_hour_clock(time[1], found[5])
+            time_dictionary = add_to_dictionary(time_dictionary, str(hours))
+            #Message. Ignore media.
+            if '<Media omitted>' not in found[10] and '<‎attached>' not in found[10]:
+                message_list.append(found[10])
+            number_of_messages += 1
+            
+    word_dictionary = get_word_frequency(message_list)
+    return date_dictionary, time_dictionary, person_dictionary, word_dictionary, number_of_messages 
 
-#Analyze file
-text_to_analyze = read_file(file_name)
+"""
+Sorts a dictionary by value or key. Value by default.
+Uses an OrderedDict since in Python dictionaries can't be sorted.
+"""
+def sort_dictionary(dictionary, sort_by='value'):
+    if sort_by == 'key':
+        return OrderedDict(sorted(dictionary.items()))
+    return OrderedDict(sorted(dictionary.items(), key=lambda x:x[1], reverse=True))
 
-#for each line, check if it is a new message. If it is, split it up into components.
-#The date and sender components are added to their dictionaries.
-#Split up the time into hours, minutes, seconds and AM/PM.
-#If it is PM, add 12 hours to it. If hours is a single digit, convert it to double digits.
-#Each message is appended to a list for later analysis.
-for lines in text_to_analyze:
-    if message_format.search(lines):
-        found = message_format.search(lines)
-        date_dictionary = add_to_dictionary(date_dictionary, found[1])
-        person_dictionary = add_to_dictionary(person_dictionary, found[8])
-        #Time
-        time = time_split.search(found[3])
-        hours = time[1]
-        if len(hours) == 1:
-            hours = '0' + str(hours)
-        if found[5] == ' PM':
-            if (int(hours) + 12) >= 24:
-                hours = 0
-            else:
-                hours = int(hours) + 12
-        time_dictionary = add_to_dictionary(time_dictionary, str(hours))
-        #Message. Ignore media.
-        if '<Media omitted>' not in found[10] and '<‎attached>' not in found[10]:
-            messgae_list.append(found[10])
-        number_of_messages += 1
+def driver():
+    # Read given file
+    file_name_with_extension = get_file_name()
+    file_name = file_split.search(file_name_with_extension)[1]
+    text_to_analyze = read_file(file_name_with_extension)
+    
+    # Collect data
+    date_dictionary, time_dictionary, person_dictionary, word_dictionary, number_of_messages = collect_data(text_to_analyze)
+    
+    # Sort all Dictionaries here
+    word_dictionary = OrderedDict(word_dictionary.most_common(20))
+    date_dictionary = sort_dictionary(date_dictionary)
+    time_dictionary = sort_dictionary(time_dictionary, 'key')
+    person_dictionary = sort_dictionary(person_dictionary)
+  
+    #Generate graphs
+    graphs.histogram(
+       time_dictionary, 
+       'Message Frequency Chart in ' + file_name, 
+       'output/' + file_name + '-time_activity.png'
+    )
+    graphs.bar_graph(
+        word_dictionary, 20, 'Uses',
+        'Most used words in ' + str(number_of_messages) + ' messages in ' + file_name,
+        'output/' + file_name + '-word_frequency.png'
+    )
+    graphs.bar_graph(
+        date_dictionary, 20, 'Messages', 
+        'Most Messages in ' + file_name, 
+        'output/' + file_name + '-date_activity.png'
+    )
+    graphs.bar_graph(
+        person_dictionary, 20, 'Messages',
+        'Most active person in ' + file_name, 
+        'output/' + file_name + '-person_activity.png'
+    )
+    
+    # Remove old data sheets
+    output_file = 'output/' + file_name + '-data.xlsx'
+    if os.path.isfile(output_file):
+        os.unlink(output_file)
 
-#Sort dictionaries and get word dictionary from analysing the message list
-date_dictionary = sort(date_dictionary)
-person_dictionary = sort(person_dictionary)
-time_dictionary = sorted(time_dictionary, key=itemgetter('Time'))
-word_dictionary = get_word_frequency(messgae_list)
-
-#remove old data sheets
-if os.path.isfile('output/data.xlsx'):
-    os.unlink('output/data.xlsx')
-
-#Add to excel sheet
-to_xl(date_dictionary, 'Dates', 'Date', 'No. of Messages')
-to_xl(person_dictionary, 'People', 'Sender', 'No. of Messages')
-to_xl(time_dictionary, 'Times', 'Time', 'No. of Messages')
-to_xl(word_dictionary, 'Words', 'Word', 'No. of Uses')
-
-#Generate graphs
-new_file_name = file_split.search(file_name)[1]
-graphs.histogram(time_dictionary, 'Message Time Chart in ' + new_file_name, 'output/timeActivity.png')
-graphs.barGraph(word_dictionary[:15], 'Word', 'Uses', 'Most used words in ' + str(number_of_messages) + ' messages in ' + new_file_name, 'output/wordFrequency.png')
-graphs.barGraph(date_dictionary[:15], 'Date', 'Messages', 'Most Messages in ' + new_file_name, 'output/dateActivity.png')
-graphs.barGraph(person_dictionary[:15], 'Sender', 'Messages', 'Most active person in ' + new_file_name, 'output/personActivity.png')
+    #Add to excel sheet
+    to_xl(date_dictionary, 'Dates', 'Date', 'No. of Messages', output_file)
+    to_xl(person_dictionary, 'People', 'Sender', 'No. of Messages', output_file)
+    to_xl(time_dictionary, 'Times', 'Time', 'No. of Messages', output_file)
+    to_xl(word_dictionary, 'Words', 'Word', 'No. of Occurences', output_file)
+    
+if __name__ == "__main__":
+    driver()
