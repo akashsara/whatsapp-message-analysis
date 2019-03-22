@@ -9,8 +9,9 @@ from openpyxl.styles import Font
 from openpyxl.styles import NamedStyle
 
 #(Date)(, )(Hours:Minutes)(Seconds)(AM/PM)(:/ -)( )(Sender)(: )(Message)
-message_format = re.compile(r'^([0-9]{1,2}/[0-9]{2}/[0-9]{2})(, )([0-9]{1,2}:[0-9]{2})(:[0-9]{2})*( [A-Z]{2})( -|:)( )(.*?)(: )(.*)')
-#[Hours]:[Minutes]
+message_format = re.compile(r'^(\[?)([0-9]{1,2}/[0-9]{2}/[0-9]{2,4})( |, )([0-9]{1,2}:[0-9]{2})(:[0-9]{2})?(]|( [A-Z]{2})( -|:))( )(.*?)(: )(.*)')
+# ([)(Day/Month/Year)( )(Hours:Minutes)(:Seconds)(] )(Sender)(: )(Message)
+# (\[)([0-9]{1,2}/[0-9]{2}/[0-9]{2,4})( )([0-9]{1,2}:[0-9]{2})(:[0-9]{2})(])( )(.*?)(: )(.*)
 time_split = re.compile(r'([0-9]{1,2}):([0-9]{2})')
 
 #To get rid of file extension when making graphs
@@ -154,15 +155,15 @@ def collect_data(text_to_analyze):
     for lines in text_to_analyze:
         if message_format.search(lines):
             found = message_format.search(lines)
-            date_dictionary = add_to_dictionary(date_dictionary, found[1])
-            person_dictionary = add_to_dictionary(person_dictionary, found[8])
+            date_dictionary = add_to_dictionary(date_dictionary, found[2])
+            person_dictionary = add_to_dictionary(person_dictionary, found[10])
             #Time
-            time = time_split.search(found[3])
-            hours = to_24_hour_clock(time[1], found[5])
+            time = time_split.search(found[4])
+            hours = to_24_hour_clock(time[1], found[7])
             time_dictionary = add_to_dictionary(time_dictionary, str(hours))
             #Message. Ignore media.
-            if '<Media omitted>' not in found[10] and '<‎attached>' not in found[10]:
-                message_list.append(found[10])
+            if '<Media omitted>' not in found[12] and '<‎attached>' not in found[12]:
+                message_list.append(found[12])
             number_of_messages += 1
             
     word_dictionary = get_word_frequency(message_list)
