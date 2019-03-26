@@ -9,7 +9,7 @@ from openpyxl.styles import Font
 from openpyxl.styles import NamedStyle
 
 #(Date)(, )(Hours:Minutes)(Seconds)(AM/PM)(:/ -)( )(Sender)(: )(Message)
-message_format = re.compile(r'^(\[?)([0-9]{1,2}/[0-9]{2}/[0-9]{2,4})( |, )([0-9]{1,2}:[0-9]{2})(:[0-9]{2})?(]|( [A-Z]{2})( -|:))( )(.*?)(: )(.*)')
+message_format = re.compile(r'^(\[?)([0-9]{1,2}/[0-9]{2}/[0-9]{2,4})( |, )([0-9]{1,2}:[0-9]{2})(:[0-9]{2})?(]|( [A-Z]{2})?( -|:))( )(.*?)(: )(.*)')
 # ([)(Day/Month/Year)( )(Hours:Minutes)(:Seconds)(] )(Sender)(: )(Message)
 # (\[)([0-9]{1,2}/[0-9]{2}/[0-9]{2,4})( )([0-9]{1,2}:[0-9]{2})(:[0-9]{2})(])( )(.*?)(: )(.*)
 time_split = re.compile(r'([0-9]{1,2}):([0-9]{2})')

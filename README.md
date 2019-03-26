@@ -38,6 +38,8 @@ Only messages of the following types have been tested:
 * `4/24/17, 6:30 PM - username/phone number: message`
 
 * `[30/04/2015 20:55:13] username/phone number: message`
+
+* `3/25/19, 17:14 - username: message`
  
 Other message formats will most likely not work at all. If you find a different format, please open an issue and I'll add it in.
 
