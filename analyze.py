@@ -71,8 +71,6 @@ def get_workbook_and_sheet(sheet_name, output_file):
         xl.create_sheet(title=sheet_name)
         sheet = xl[sheet_name]
     else:
-        if not os.path.exists('output'):
-            os.mkdir('output')
         xl = openpyxl.Workbook()
         sheet = xl.active
         sheet.title = sheet_name
