@@ -193,6 +193,9 @@ def driver():
     time_dictionary = sort_dictionary(time_dictionary, 'key')
     person_dictionary = sort_dictionary(person_dictionary)
   
+    if not os.path.exists('output'):
+        os.mkdir(output)
+        
     #Generate graphs
     graphs.histogram(
        time_dictionary, 
