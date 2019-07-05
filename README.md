@@ -10,7 +10,7 @@ It's a script that analyzes all the messages in a given WhatsApp group chat and 
 
 2. Clone or download this repository and enter the root directory. 
 
-3. Run `pip install requirements.txt`
+3. Run `pip install -r requirements.txt`
 
 4. Get a chat by going into a group -> Settings -> Email Chat -> No Media.
 

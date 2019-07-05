@@ -42,7 +42,7 @@ When the entire list of messages is covered, return the frequency dict.
 def get_word_frequency(message_list):
     with open('commonWords.txt', 'r') as word_file:
         common_words_list = word_file.read()
-    clean_word = re.compile(r'[a-zA-z0-9]+')
+    clean_word = re.compile(r'[а-яА-Яa-zA-z0-9]+')
     frequency_dictionary = Counter()
     for messages in message_list:
         processed_words = []
@@ -60,9 +60,9 @@ def get_word_frequency(message_list):
 """
 Function to create a new sheet or find an existing sheet.
 Returns a Worksheet object as well as the Workbook object.
-First, it checks if the file: data.xlsx already exists. 
-If the file exists, just create a new sheet with the given sheet_name argument. 
-Otherwise, create a new Workbook and set the sheet name. 
+First, it checks if the file: data.xlsx already exists.
+If the file exists, just create a new sheet with the given sheet_name argument.
+Otherwise, create a new Workbook and set the sheet name.
 Return the Workbook, Worksheet
 """
 def get_workbook_and_sheet(sheet_name, output_file):
@@ -111,14 +111,14 @@ def get_file_name():
     return ' '.join(sys.argv[1:])
 
 """
-Function to read the input file of chats. 
+Function to read the input file of chats.
 Copies it to a variable and returns it.
 """
 def read_file(file_name):
     with open(file_name, 'r', encoding='utf-8') as fi:
         text_to_analyze = fi.readlines()
     return text_to_analyze
-    
+
 """
 Converts the hour of the day from the 12-hour clock to the 24-hour clock.
 """
@@ -130,10 +130,10 @@ def to_24_hour_clock(hours, time_period):
     elif len(hours) == 1:
         return '0' + str(hours)
     else:
-        return hours    
-       
+        return hours
+
 """
-    Initialize all variables. 
+    Initialize all variables.
     Read one message at a time.
     Check if it matches our Regex "line" format.
     If it does, perform this process:
@@ -148,7 +148,7 @@ def collect_data(text_to_analyze):
     time_dictionary = {}
     person_dictionary = {}
     message_list = []
-    
+
     # Collecting data into variables
     for lines in text_to_analyze:
         if message_format.search(lines):
@@ -163,9 +163,9 @@ def collect_data(text_to_analyze):
             if '<Media omitted>' not in found[12] and '<‎attached>' not in found[12]:
                 message_list.append(found[12])
             number_of_messages += 1
-            
+
     word_dictionary = get_word_frequency(message_list)
-    return date_dictionary, time_dictionary, person_dictionary, word_dictionary, number_of_messages 
+    return date_dictionary, time_dictionary, person_dictionary, word_dictionary, number_of_messages
 
 """
 Sorts a dictionary by value or key. Value by default.
@@ -181,23 +181,23 @@ def driver():
     file_name_with_extension = get_file_name()
     file_name = file_split.search(file_name_with_extension)[1]
     text_to_analyze = read_file(file_name_with_extension)
-    
+
     # Collect data
     date_dictionary, time_dictionary, person_dictionary, word_dictionary, number_of_messages = collect_data(text_to_analyze)
-    
+
     # Sort all Dictionaries here
     word_dictionary = OrderedDict(word_dictionary.most_common(20))
     date_dictionary = sort_dictionary(date_dictionary)
     time_dictionary = sort_dictionary(time_dictionary, 'key')
     person_dictionary = sort_dictionary(person_dictionary)
-  
+
     if not os.path.exists('output'):
-        os.mkdir(output)
-        
+        os.mkdir('output')
+
     #Generate graphs
     graphs.histogram(
-       time_dictionary, 
-       'Message Frequency Chart in ' + file_name, 
+       time_dictionary,
+       'Message Frequency Chart in ' + file_name,
        'output/' + file_name + '-time_activity.png'
     )
     graphs.bar_graph(
@@ -206,16 +206,16 @@ def driver():
         'output/' + file_name + '-word_frequency.png'
     )
     graphs.bar_graph(
-        date_dictionary, 20, 'Messages', 
-        'Most Messages in ' + file_name, 
+        date_dictionary, 20, 'Messages',
+        'Most Messages in ' + file_name,
         'output/' + file_name + '-date_activity.png'
     )
     graphs.bar_graph(
         person_dictionary, 20, 'Messages',
-        'Most active person in ' + file_name, 
+        'Most active person in ' + file_name,
         'output/' + file_name + '-person_activity.png'
     )
-    
+
     # Remove old data sheets
     output_file = 'output/' + file_name + '-data.xlsx'
     if os.path.isfile(output_file):
@@ -226,6 +226,6 @@ def driver():
     to_xl(person_dictionary, 'People', 'Sender', 'No. of Messages', output_file)
     to_xl(time_dictionary, 'Times', 'Time', 'No. of Messages', output_file)
     to_xl(word_dictionary, 'Words', 'Word', 'No. of Occurences', output_file)
-    
+
 if __name__ == "__main__":
     driver()
